@@ -321,8 +321,11 @@ export default class Postman {
                                     tlsGreeted = true;
                                 } else if (code === 354) {
                                     createEmailMessage(sendOptions, this.options.dkim).then(message => {
+                                        if (logger) {
+                                            logger.log('Sending email:', message);
+                                        }
                                         tlsSocket.write(message);
-                                        tlsSocket.write('.\r\n'); // End of data
+                                        tlsSocket.write('\r\n.\r\n'); // End of data
                                     }).catch(reject);
                                 } else if (code === 250 && tlsResponse.includes('2.0.0')) {
                                     tlsSocket.write('QUIT\r\n');

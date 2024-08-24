@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "description": "Nodejs no dependency and light MTA (Mail transfer agent)",
   "scripts": {
-    "start": "ts-node send.ts",
+    "start": "ts-node attachments/send.ts",
     "build": "tsc"
   },
   "dependencies": {
