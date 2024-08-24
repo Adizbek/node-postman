@@ -1,10 +1,26 @@
 {
+  "type": "commonjs",
+  "name": "node-postman",
+  "private": false,
+  "version": "1.0.0",
+  "description": "Nodejs no dependency and light MTA (Mail transfer agent)",
+  "scripts": {
+    "start": "ts-node send.ts",
+    "build": "tsc"
+  },
   "dependencies": {
+  },
+  "devDependencies": {
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },
-  "scripts": {
-    "start": "ts-node send.ts"
-  },
-  "type": "commonjs"
+  "keywords": [
+    "smtp",
+    "mta",
+    "email"
+  ],
+  "author": "Adizbek Ergashev",
+  "license": "MIT",
+  "main": "dist/postman.js",
+  "types": "./dist/postman.d.ts"
 }
