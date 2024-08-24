@@ -1,8 +1,7 @@
 {
   "type": "commonjs",
   "name": "node-postman",
-  "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Nodejs no dependency and light MTA (Mail transfer agent)",
   "scripts": {
     "start": "ts-node send.ts",

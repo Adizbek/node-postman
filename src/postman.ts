@@ -224,10 +224,8 @@ async function getRecipientsByMx(sendOptions: SendEnvelope, timeout: number): Pr
         })
     );
 }
-
 export default class Postman {
-    constructor(private readonly options: PostmanOptions) {
-    }
+    constructor(private readonly options: PostmanOptions) {}
 
     async send(sendOptions: SendEnvelope): Promise<string> {
         const logger = this.options.logger;
@@ -251,13 +249,27 @@ export default class Postman {
 
                     // Set connection timeout
                     client.setTimeout(this.options.connectionTimeout ?? DEFAULT_CONNECT_TIMEOUT);
+
+                    let readTimeout: NodeJS.Timeout;
+
+                    const resetReadTimeout = () => {
+                        clearTimeout(readTimeout);
+                        readTimeout = setTimeout(() => {
+                            client.destroy();
+                            reject(new Error('Read operation timed out'));
+                        }, this.options.readTimeout ?? DEFAULT_READ_TIMEOUT);
+                    };
+
                     client.once('data', () => {
-                        client.setTimeout(0); // Disable the timeout after receiving data
+                        client.setTimeout(0); // Disable the connection timeout after receiving data
+                        resetReadTimeout();    // Start the read timeout
                     });
 
                     let greeted = false;
 
                     client.on('data', (data) => {
+                        resetReadTimeout();
+
                         if (logger) logger.log('Response from server:', data.toString());
 
                         const serverData = data.toString();
@@ -283,12 +295,15 @@ export default class Postman {
                             }, () => {
                                 if (logger) logger.log('TLS connection established');
                                 tlsSocket.write(`EHLO ${mxHost}\r\n`);
+                                resetReadTimeout(); // Start the read timeout for TLS
                             });
 
                             let tlsGreeted = false;
 
                             // Handle the SMTP conversation over TLS
                             tlsSocket.on('data', (tlsData) => {
+                                resetReadTimeout();
+
                                 const tlsResponse = tlsData.toString();
                                 const code = parseInt(tlsResponse.substring(0, 3));
 
@@ -320,11 +335,13 @@ export default class Postman {
                             });
 
                             tlsSocket.on('error', (err) => {
+                                clearTimeout(readTimeout);
                                 tlsSocket.destroy();
                                 return reject(new Error(`TLS error: ${err.message}`));
                             });
 
                             tlsSocket.on('end', () => {
+                                clearTimeout(readTimeout);
                                 if (logger) logger.log('TLS connection closed');
                             });
                         } else if (code >= 500) {
@@ -335,10 +352,12 @@ export default class Postman {
 
                     client.on('error', (err) => {
                         client.destroy();
+                        clearTimeout(readTimeout);
                         return reject(new Error(`SMTP error: ${err.message}`));
                     });
 
                     client.on('end', () => {
+                        clearTimeout(readTimeout);
                         if (logger) logger.log('Connection closed');
                     });
                 });
