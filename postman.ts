@@ -25,7 +25,8 @@ export interface SendEnvelope {
     from: string
     to: string
     subject: string
-    body: string
+    body: string;       // Plain text body
+    html?: string;      // Optional HTML body
     attachments?: Array<EnvelopeAttachment>;
 }
 
@@ -84,27 +85,48 @@ ${base64Content}
 
 
 async function createEmailMessage(sendOptions: SendEnvelope, dkim: undefined | DKIMOptions): Promise<string> {
-    const { from, to, subject, body, attachments } = sendOptions;
+    const {from, to, subject, body, attachments, html} = sendOptions;
     const fromDomain = from.split('@')[1];
-    const boundary = '--boundary_' + crypto.randomBytes(16).toString('hex');
+
+    // Generate boundaries for mixed and alternative parts
+    const mixedBoundary = '--boundary_' + crypto.randomBytes(16).toString('hex');
+    const alternativeBoundary = '--boundary_' + crypto.randomBytes(16).toString('hex');
 
     let message = `Message-ID: ${generateMessageId(fromDomain)}\r\n`;
     message += `From: ${from}\r\n`;
     message += `To: ${to}\r\n`;
     message += `Subject: ${subject}\r\n`;
     message += `MIME-Version: 1.0\r\n`;
-    message += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n`;
-    message += `--${boundary}\r\n`;
+    message += `Content-Type: multipart/mixed; boundary="${mixedBoundary}"\r\n\r\n`;
+
+    // Add the multipart/alternative part for text/plain and text/html
+    message += `--${mixedBoundary}\r\n`;
+    message += `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"\r\n\r\n`;
+
+    // Add plain text part
+    message += `--${alternativeBoundary}\r\n`;
     message += `Content-Type: text/plain; charset="utf-8"\r\n\r\n`;
     message += `${body}\r\n`;
 
+    // Add HTML part if provided
+    if (html) {
+        message += `--${alternativeBoundary}\r\n`;
+        message += `Content-Type: text/html; charset="utf-8"\r\n\r\n`;
+        message += `${html}\r\n`;
+    }
+
+    // Close the alternative boundary
+    message += `--${alternativeBoundary}--\r\n`;
+
+    // Add attachments if any
     if (attachments) {
         for (let attachment of attachments) {
-            message += await encodeAttachment(attachment, boundary);
+            message += await encodeAttachment(attachment, mixedBoundary);
         }
     }
 
-    message += `--${boundary}--\r\n`; // Close the MIME part with the boundary
+    // Close the mixed boundary
+    message += `--${mixedBoundary}--\r\n`;
 
 
     if (dkim) {
